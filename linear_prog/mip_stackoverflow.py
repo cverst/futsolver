@@ -1,6 +1,8 @@
 from ortools.linear_solver import pywraplp
 import pandas as pd
 
+# See https://stackoverflow.com/questions/57078434/finding-all-combinations-based-on-multiple-conditions-for-a-large-list
+
 
 def get_data():
     df = pd.read_csv("../Fifa 22 Fut Players.csv")
