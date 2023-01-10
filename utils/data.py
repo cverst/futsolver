@@ -31,10 +31,17 @@ def clean(df):
 
 def curate(df):
     df = df.drop_duplicates(subset=["Name"])
-    df = df.loc[:, ["Name", "Ratings", "PS", "Club"]]
-    df = df.query(
-        "Club in ['AZ', 'FC Utrecht', 'Feyenoord', 'PSV', 'Ajax', 'FC Twente']"
-    )
+    # df = df.loc[:, ["Name", "Ratings", "PS", "Club"]]
+    df = df.loc[:, ["Name", "Ratings", "PS", "Club", "League"]]
+    # df = df.query(
+    #     "Club in ['AZ', 'FC Utrecht', 'Feyenoord', 'PSV', 'Ajax', 'FC Twente']"
+    # )
+    # df = df.query("League == 'Eredivisie'")
+    # df = df.query("League == 'Premier League'")
+    # df = df.query("Ratings >= 70")
+    
+    df = df.query("Ratings >= 70 and Ratings <= 80")
+
     df.reset_index(drop=True, inplace=True)
     return df
 

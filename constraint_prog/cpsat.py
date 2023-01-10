@@ -1,6 +1,10 @@
 from ortools.sat.python import cp_model
+import datetime
 from utils.data import get_data
 from utils.stats import team_rating
+
+
+print(datetime.datetime.now())
 
 # ---------- PREPARATIONS ----------
 
@@ -17,7 +21,9 @@ TEAM_SIZE = 11
 MAX_PLAYERS_PER_CLUB = 3
 MIN_PLAYERS_PER_CLUB = 2
 
-MIN_TEAM_RATING = 83
+MIN_TEAM_RATING = 76
+
+MAX_COST = 15000
 
 # ---------- VARIABLES ----------
 
@@ -134,17 +140,17 @@ model.Add(
     >= MIN_TEAM_RATING * TEAM_SIZE * TEAM_SIZE
 )
 
-# # Limit cost to ground_truth + 5%
+# Limit cost to ground_truth + 5%
 # MAX_COST = round(ground_truth * 1.05)
-# model.Add(
-#     sum([name * cost for name, cost in zip(variables_name.values(), df.loc[:, "PS"])])
-#     <= MAX_COST
-# )
+model.Add(
+    sum([name * cost for name, cost in zip(variables_name.values(), df.loc[:, "PS"])])
+    <= MAX_COST
+)
 
 # The following line can be used to find the best solution. However, we want o find a range of solutions for now.
-model.Minimize(
-    sum([name * cost for name, cost in zip(variables_name.values(), df.loc[:, "PS"])])
-)
+# model.Minimize(
+#     sum([name * cost for name, cost in zip(variables_name.values(), df.loc[:, "PS"])])
+# )
 
 # ---------- SOLVER ----------
 
@@ -161,13 +167,7 @@ if status == cp_model.OPTIMAL:
     print(df.loc[mask, :])
     print("Total cost: {}".format(sum(df.loc[mask, "PS"])))
     print("Team rating: {}".format(team_rating(df.loc[mask, "Ratings"])))
-    # print(
-    #     "Excess ratings: {}".format(
-    #         [
-    #             (name, solver.Value(var))
-    #             for name, var in variables_maxexcessrating.items()
-    #         ]
-    #     )
-    # )
 else:
     print("No solution found.")
+
+print(datetime.datetime.now())
