@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-DATA_PATH = "../Fifa 22 Fut Players.csv"
+DATA_PATH = "../Fifa Fut Players.csv"
 
 
 def load(path):
@@ -30,17 +30,22 @@ def clean(df):
 
 
 def curate(df):
-    df = df.drop_duplicates(subset=["Name"])
-    # df = df.loc[:, ["Name", "Ratings", "PS", "Club"]]
-    df = df.loc[:, ["Name", "Ratings", "PS", "Club", "League"]]
-    # df = df.query(
-    #     "Club in ['AZ', 'FC Utrecht', 'Feyenoord', 'PSV', 'Ajax', 'FC Twente']"
-    # )
-    # df = df.query("League == 'Eredivisie'")
-    # df = df.query("League == 'Premier League'")
-    # df = df.query("Ratings >= 70")
-    
-    df = df.query("Ratings >= 70 and Ratings <= 80")
+    # df = df.loc[:, ["Name", "Ratings", "PS", "Position", "Version"]]
+    df = df.loc[
+        :, ["Name", "Ratings", "Position", "Version", "PS", "Club", "League", "Country"]
+    ]
+
+    # Only keep players with Version ending with "IF", or Version part of ["Rare, Normal"]
+    df = df.query(
+        "Version.str.endswith('IF') | Version.isin(['Rare', 'Normal'])"
+    ).reset_index(drop=True)
+
+    # When a player has multiple Position, create a new row for each Position
+    df.loc[:, "Position"] = df.apply(lambda row: row["Position"].split(","), axis=1)
+    df = df.explode("Position")
+
+    # Sort players by Ratings
+    df = df.sort_values(by="Ratings", ascending=False)
 
     df.reset_index(drop=True, inplace=True)
     return df
@@ -50,4 +55,5 @@ def get_data():
     df = load(DATA_PATH)
     df = clean(df)
     df = curate(df)
+    # print(df.head(60))
     return df

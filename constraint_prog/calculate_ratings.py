@@ -29,8 +29,8 @@ def SearchForAllSolutionsSampleSat(team_rating, n_unique_ratings, rating_range):
     TEAM_SIZE = 11
     if type(rating_range) == int:
         rating_range = (rating_range, rating_range)
-    min_rating = team_rating - rating_range[0]
-    max_rating = team_rating + rating_range[1]
+    min_rating = max(team_rating - rating_range[0], 0)
+    max_rating = min(team_rating + rating_range[1], 99)
 
     variable_ratings = {}
     variable_counts = {}
