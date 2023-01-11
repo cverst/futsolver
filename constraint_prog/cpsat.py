@@ -10,6 +10,11 @@ print(datetime.datetime.now())
 
 df = get_data()
 
+# Only keep players with rating in range 65 - 85
+df = df.query("65 <= Ratings <= 85")
+
+print(len(df))
+
 # ground_truth = sum(df.sort_values(by=["PS"], ascending=True).head(11).loc[:, "PS"])
 
 model = cp_model.CpModel()
@@ -23,15 +28,15 @@ MIN_PLAYERS_PER_CLUB = 2
 
 MIN_TEAM_RATING = 76
 
-MAX_COST = 15000
+MAX_COST = 20000
 
 # ---------- VARIABLES ----------
 
 # Player selection variables
-variables_name = {}
+variables_id = {}
 for _, row in df.iterrows():
-    name = row["Name"]
-    variables_name[name] = model.NewBoolVar("name_{}".format(name))
+    id = row["ID"]
+    variables_id[id] = model.NewBoolVar("id_{}".format(id))
 
 # Club selection variables
 variables_club = {}
@@ -50,45 +55,45 @@ variables_excessrating = {}
 variables_maxexcessrating = {}
 variables_maxexcessratingmultiplied = {}
 for _, row in df.iterrows():
-    name = row["Name"]
+    id = row["ID"]
     diff_rating = max_rating - min_rating
-    variables_excessrating[name] = model.NewIntVar(
+    variables_excessrating[id] = model.NewIntVar(
         -diff_rating * TEAM_SIZE,
         diff_rating * TEAM_SIZE,
-        "excessrating_{}".format(name),
+        "excessrating_{}".format(id),
     )
-    variables_maxexcessrating[name] = model.NewIntVar(
-        0, diff_rating * TEAM_SIZE, "maxexcessrating_{}".format(name)
+    variables_maxexcessrating[id] = model.NewIntVar(
+        0, diff_rating * TEAM_SIZE, "maxexcessrating_{}".format(id)
     )
-    variables_maxexcessratingmultiplied[name] = model.NewIntVar(
-        0, diff_rating * TEAM_SIZE, "maxexcessratingmultiplied_{}".format(name)
+    variables_maxexcessratingmultiplied[id] = model.NewIntVar(
+        0, diff_rating * TEAM_SIZE, "maxexcessratingmultiplied_{}".format(id)
     )
 
 
 # ---------- CONSTRAINTS ----------
 
 # Select exactly 11 players
-model.Add(sum(variables_name.values()) == TEAM_SIZE)
+model.Add(sum(variables_id.values()) == TEAM_SIZE)
 
 # Select a maximum number of players per club
 for club, var in variables_club.items():
     model.Add(
         sum(
             [
-                variables_name[player]
-                for player in df.query("`Club`==@club").loc[:, "Name"]
+                variables_id[player]
+                for player in df.query("`Club`==@club").loc[:, "ID"]
             ]
         )
         <= MAX_PLAYERS_PER_CLUB
     )
 
-# # Select a minimum number of players per club, but only enforce this for clubs with 1 or more players in the team
+# Select a minimum number of players per club, but only enforce this for clubs with 1 or more players in the team
 for club, var in variables_club.items():
     model.Add(
         sum(
             [
-                variables_name[player]
-                for player in df.query("`Club`==@club").loc[:, "Name"]
+                variables_id[player]
+                for player in df.query("`Club`==@club").loc[:, "ID"]
             ]
         )
         >= MIN_PLAYERS_PER_CLUB
@@ -96,8 +101,8 @@ for club, var in variables_club.items():
     model.Add(
         sum(
             [
-                variables_name[player]
-                for player in df.query("`Club`==@club").loc[:, "Name"]
+                variables_id[player]
+                for player in df.query("`Club`==@club").loc[:, "ID"]
             ]
         )
         == 0
@@ -111,27 +116,27 @@ model.Add(
     sum(
         [
             selected * rating
-            for selected, rating in zip(variables_name.values(), df.loc[:, "Ratings"])
+            for selected, rating in zip(variables_id.values(), df.loc[:, "Ratings"])
         ]
     )
     == variable_baserating
 )
 # Establish all excess ratings
-for name, var in variables_excessrating.items():
+for id, var in variables_excessrating.items():
     model.Add(
         var
-        == df.query("`Name`==@name").loc[:, "Ratings"].values[0] * TEAM_SIZE
+        == df.query("`ID`==@id").loc[:, "Ratings"].values[0] * TEAM_SIZE
         - variable_baserating
     )
     # Establish maximum excess rating to remove negative excess ratings
     model.AddMaxEquality(
-        variables_maxexcessrating[name],
+        variables_maxexcessrating[id],
         [var, 0],
     )
     # Establish multiplication equalities for excess rating
     model.AddMultiplicationEquality(
-        variables_maxexcessratingmultiplied[name],
-        [variables_maxexcessrating[name], variables_name[name]],
+        variables_maxexcessratingmultiplied[id],
+        [variables_maxexcessrating[id], variables_id[id]],
     )
 # Final constraint for minimum team rating:
 # Add the excess ratings for selected players to the base rating multiplied by the team size
@@ -143,13 +148,13 @@ model.Add(
 # Limit cost to ground_truth + 5%
 # MAX_COST = round(ground_truth * 1.05)
 model.Add(
-    sum([name * cost for name, cost in zip(variables_name.values(), df.loc[:, "PS"])])
+    sum([id * cost for id, cost in zip(variables_id.values(), df.loc[:, "PS"])])
     <= MAX_COST
 )
 
 # The following line can be used to find the best solution. However, we want o find a range of solutions for now.
 # model.Minimize(
-#     sum([name * cost for name, cost in zip(variables_name.values(), df.loc[:, "PS"])])
+#     sum([id * cost for id, cost in zip(variables_id.values(), df.loc[:, "PS"])])
 # )
 
 # ---------- SOLVER ----------
@@ -163,7 +168,7 @@ if status == cp_model.OPTIMAL:
     print("Optimal solution found!")
     print("Cost: {}".format(solver.ObjectiveValue()))
     print("Players:")
-    mask = [solver.Value(variables_name[name]) == 1 for name in variables_name]
+    mask = [solver.Value(variables_id[id]) == 1 for id in variables_id]
     print(df.loc[mask, :])
     print("Total cost: {}".format(sum(df.loc[mask, "PS"])))
     print("Team rating: {}".format(team_rating(df.loc[mask, "Ratings"])))

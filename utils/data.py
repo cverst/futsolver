@@ -38,7 +38,7 @@ def curate(df):
     # Only keep players with Version ending with "IF", or Version part of ["Rare, Normal"]
     df = df.query(
         "Version.str.endswith('IF') | Version.isin(['Rare', 'Normal'])"
-    ).reset_index(drop=True)
+    )
 
     # When a player has multiple Position, create a new row for each Position
     df.loc[:, "Position"] = df.apply(lambda row: row["Position"].split(","), axis=1)
@@ -47,7 +47,10 @@ def curate(df):
     # Sort players by Ratings
     df = df.sort_values(by="Ratings", ascending=False)
 
+    # Create unique ID for each player
     df.reset_index(drop=True, inplace=True)
+    df.loc[:, "ID"] = df.index
+
     return df
 
 
