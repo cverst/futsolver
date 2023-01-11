@@ -30,15 +30,8 @@ def clean(df):
 
 
 def curate(df):
-    # df = df.loc[:, ["Name", "Ratings", "PS", "Position", "Version"]]
-    df = df.loc[
-        :, ["Name", "Ratings", "Position", "Version", "PS", "Club", "League", "Country"]
-    ]
-
     # Only keep players with Version ending with "IF", or Version part of ["Rare, Normal"]
-    df = df.query(
-        "Version.str.endswith('IF') | Version.isin(['Rare', 'Normal'])"
-    )
+    df = df.query("Version.str.endswith('IF') | Version.isin(['Rare', 'Normal'])")
 
     # When a player has multiple Position, create a new row for each Position
     df.loc[:, "Position"] = df.apply(lambda row: row["Position"].split(","), axis=1)
@@ -51,6 +44,25 @@ def curate(df):
     df.reset_index(drop=True, inplace=True)
     df.loc[:, "ID"] = df.index
 
+    # Only keep relevant columns in right order
+    df = df.loc[
+        :,
+        [
+            "ID",
+            "Name",
+            "Ratings",
+            "Position",
+            "Version",
+            "PS",
+            "Club",
+            "League",
+            "Country",
+        ],
+    ]
+
+    # One-hot encode Position
+    # df = pd.get_dummies(df, columns=["Position"], prefix="", prefix_sep="")
+
     return df
 
 
@@ -58,5 +70,6 @@ def get_data():
     df = load(DATA_PATH)
     df = clean(df)
     df = curate(df)
+    # print(df.columns)
     # print(df.head(60))
     return df
