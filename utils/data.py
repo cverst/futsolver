@@ -1,8 +1,7 @@
 import pandas as pd
 
 
-DATA_PATH = "../Fifa Fut Players.csv"
-
+DATA_PATH = "../Fifa 23 Fut Players.csv"
 
 def load(path):
     df = pd.read_csv(path)
@@ -26,16 +25,25 @@ def load(path):
 def clean(df):
     # Remove untradable entries (entries that have price 0)
     df = df.query("PS != 0").reset_index(drop=True)
+
+    # Replace single and double spaces with a comma in Position column
+    df.loc[:, "Position"] = df.apply(
+        lambda row: row["Position"].replace(" ", ",").replace(",,", ","), axis=1
+    )
+
+    # Convert Position column to list of strings
+    df.loc[:, "Position"] = df.apply(lambda row: row["Position"].split(","), axis=1)
+
+    # Split Explosive and Controlled off from the Version column
+    df.loc[:, "Version"] = df.apply(
+        lambda row: row["Version"].split(" ")[0], axis=1
+    )
     return df
 
 
 def curate(df):
     # Only keep players with Version ending with "IF", or Version part of ["Rare, Normal"]
     df = df.query("Version.str.endswith('IF') | Version.isin(['Rare', 'Normal'])")
-
-    # When a player has multiple Position, create a new row for each Position
-    df.loc[:, "Position"] = df.apply(lambda row: row["Position"].split(","), axis=1)
-    df = df.explode("Position")
 
     # Sort players by Ratings
     df = df.sort_values(by="Ratings", ascending=False)
@@ -60,8 +68,11 @@ def curate(df):
         ],
     ]
 
-    # One-hot encode Position
-    # df = pd.get_dummies(df, columns=["Position"], prefix="", prefix_sep="")
+    # One-hot encode all lists of position indicators, i.e., ["ST", "CF"] to columns with names "ST" and "CF"
+    df = pd.concat(
+        [df, pd.get_dummies(df.loc[:, "Position"].apply(pd.Series).stack()).groupby(level=0).sum()],
+        axis=1,
+    )
 
     return df
 
