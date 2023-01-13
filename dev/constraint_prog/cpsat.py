@@ -9,7 +9,7 @@ print(datetime.datetime.now())
 # ---------- PREPARATIONS ----------
 
 # TODO: MAYBE MOVE AWAY FROM PANDAS; TRICKY PART IS REPLACING QUERY IN THE CONSTRAINTS
-df = get_data()
+df = get_data(as_list=False)
 
 # df = df.query("65 <= Ratings <= 75")
 df = df.query("Ratings >= 80")
@@ -434,3 +434,4 @@ else:
     print("No solution found.")
 
 print(datetime.datetime.now())
+
