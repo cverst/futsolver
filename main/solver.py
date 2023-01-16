@@ -50,6 +50,21 @@ class SBCSolver:
             minimum_chemistry (int): Minimum chemistry.
             minimize (bool): Whether to minimize the cost of the team.
             maximum_cost (int): Maximum cost of the team.
+            categorical_constraints (list): Minimum and maximum counts for
+                categories. The extent makes the minimum constraint for all
+                categories ("all") or for a single category ("single").
+
+                Example:
+                [
+                    [feature_index_1, min_count_1, max_count_1, extent_1]
+                    [feature_index_2, min_count_2, max_count_2, extent_2]
+                    ...
+                ]
+            minimum_rating_count (list): Minimum number of players with a
+                rating greater than or equal to specified rating.
+
+                Example:
+                [min_count, rating]
         """
 
         start_time = time.time()
@@ -65,6 +80,13 @@ class SBCSolver:
 
         if "minimum_chemistry" in constraints:
             self._build_chemistry_constraint()
+
+        if "categorical_constraints" in constraints:
+            for fcon in constraints["categorical_constraints"]:
+                self._build_feature_constraint(fcon)
+
+        if "minimum_rating_count" in constraints:
+            self._build_minimum_rating_count_constraint()
 
         if "maximum_cost" in constraints:
             self._build_cost_constraint()
@@ -409,11 +431,92 @@ class SBCSolver:
                     var,
                 ],
             )
-        self.model.Add(sum(variables_player_chemistry_selected.values()) >= self._constraints["minimum_chemistry"])
+        self.model.Add(
+            sum(variables_player_chemistry_selected.values())
+            >= self._constraints["minimum_chemistry"]
+        )
 
+    def _build_feature_constraint(
+        self, constraint: Union[list, tuple]
+    ) -> None:
+        # constraint = (feature_index, mininum, maximum, type)
 
-    def _build_feature_constraint(self) -> None:
-        pass
+        # Constants
+        feature_index = constraint[0]
+        minimum = constraint[1]
+        maximum = constraint[2]
+        constraint_type = constraint[3]
+
+        # Variables
+        variables_category_in_selection = {}
+        for player_data in self.data:
+            category = player_data[feature_index]
+            if category not in variables_category_in_selection:
+                variables_category_in_selection[
+                    category
+                ] = self.model.NewBoolVar(
+                    "feature{}_{}".format(feature_index, category)
+                )
+
+        # Constraints
+        variables_category_count = {}
+        variables_category_count_max = self.model.NewIntVar(
+            0, self.team_size, "feature{}_count_max".format(feature_index)
+        )
+        for category, var in variables_category_in_selection.items():
+            feature_total = sum(
+                [
+                    self._variables_id[index]
+                    for index, player_data in enumerate(self.data)
+                    if player_data[feature_index] == category
+                ]
+            )
+            self.model.Add(feature_total <= maximum)
+            if constraint_type == "single":
+                variables_category_count[category] = self.model.NewIntVar(
+                    0,
+                    self.team_size,
+                    "feature{}_{}_count".format(feature_index, category),
+                )
+            elif constraint_type == "all":
+                self.model.Add(feature_total >= minimum).OnlyEnforceIf(var)
+                self.model.Add(feature_total == 0).OnlyEnforceIf(var.Not())
+            else:
+                raise ValueError(
+                    "Unknown constraint type: {}".format(constraint_type)
+                )
+        if constraint_type == "single":
+            self.model.AddMaxEquality(
+                variables_category_count_max, variables_category_count.values()
+            )
+            self.model.Add(variables_category_count_max >= minimum)
+
+    def _build_minimum_rating_count_constraint(self) -> None:
+        # constraint (count, minimum)
+
+        # Constants
+        count = self._constraints["minimum_rating_count"][0]
+        minimum = self._constraints["minimum_rating_count"][1]
+
+        # Variables
+        ratings = [player_data[2] for player_data in self.data]
+        ratings_larger_than_minimum = [rating >= minimum for rating in ratings]
+        variable_minimum_rating_counted = self.model.NewIntVar(
+            0, self.team_size, "minimum_rating_counted"
+        )
+        self.model.Add(
+            sum(
+                [
+                    var * b
+                    for var, b in zip(
+                        self._variables_id.values(),
+                        ratings_larger_than_minimum,
+                    )
+                ]
+            )
+            == variable_minimum_rating_counted
+        )
+        self.model.Add(variable_minimum_rating_counted >= count)
 
     def _build_cost_constraint(self) -> None:
         player_costs = [player_data[6] for player_data in self.data]

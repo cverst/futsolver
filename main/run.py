@@ -9,10 +9,16 @@ CONSTRAINTS = {
     "minimum_team_rating": 70,
     # "minimum_chemistry": 8,
     # "minimize": True,
-    "maximum_cost": 2200,
+    # "maximum_cost": 2200,
+    "categorical_constraints": [
+        [7, 2, 6, "all"],
+        [8, 3, 9, "single"],
+    ],
+    "minimum_rating_count": [7, 75]
 }
 
 FORMATION = "442"
+
 
 def run():
     print()
@@ -22,7 +28,11 @@ def run():
 
     # TODO: FIGURE OUT BETTER WAY OF LIMITING SEARCH SPACE. MAYBE CALCULATE ALL RATING COMBINATIONS AND THEN FILTER OUT WHERE MEDIAN PRICES ARE LARGER THAN NAIVE MEDIAN PRICE?
     # Remove players more than 5 rating points above the minimum team rating
-    data = [player_data for player_data in data if player_data[2] <= CONSTRAINTS["minimum_team_rating"] + 5]
+    data = [
+        player_data
+        for player_data in data
+        if player_data[2] <= CONSTRAINTS["minimum_team_rating"] + 5
+    ]
 
     # Randomly select 5% of rows from data to speed up testing
     random.seed(42)
