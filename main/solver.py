@@ -82,8 +82,12 @@ class SBCSolver:
             self._build_chemistry_constraint()
 
         if "categorical_constraints" in constraints:
-            for fcon in constraints["categorical_constraints"]:
-                self._build_feature_constraint(fcon)
+            for con in constraints["categorical_constraints"]:
+                self._build_feature_constraint(con)
+        
+        if "count_constraints" in constraints:
+            for con in constraints["count_constraints"]:
+                self._build_count_constraint(con)
 
         if "minimum_rating_count" in constraints:
             self._build_minimum_rating_count_constraint()
@@ -490,6 +494,26 @@ class SBCSolver:
                 variables_category_count_max, variables_category_count.values()
             )
             self.model.Add(variables_category_count_max >= minimum)
+    
+    def _build_count_constraint(self, constraint: Union[list, tuple]) -> None:
+        # constraint = (feature_index, minimum, maximum)
+
+        # Constants
+        feature_index = constraint[0]
+        minimum = constraint[1]
+        maximum = constraint[2]
+
+        # Constraints
+        for category in list(set([player_data[feature_index] for player_data in self.data])):
+            category_total = sum(
+                [
+                    self._variables_id[index]
+                    for index, player_data in enumerate(self.data)
+                    if player_data[feature_index] == category
+                ]
+            )
+            self.model.Add(category_total <= maximum)
+            self.model.Add(category_total >= minimum)
 
     def _build_minimum_rating_count_constraint(self) -> None:
         # constraint (count, minimum)
